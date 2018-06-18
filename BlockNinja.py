@@ -41,16 +41,23 @@ blade_effect_chance = 1
 blade_effect_duration = 25
 streak_ticks = 16
 text_age_max = 50
+crit_particle_boost = 2
 
 game_length = 60  # seconds, unenforced maximum 599 (9 min 59 sec), but you will get errors thrown in your face
 
 
 def blade_effect_sprite():
-  return choice(['plf:HudX', 'pzl:Particle' + str(randint(1, 2)), 'spc:Star' + str(randint(1, 3))])
+  return choice([
+    'plf:HudX', 'pzl:Particle' + str(randint(1, 2)),
+    'spc:Star' + str(randint(1, 3))
+  ])
 
 
 def distance(p0, p1):
   return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+
+
+crit_particle_boost -= 1  # important
 
 
 class Slice(Node):
@@ -64,7 +71,7 @@ class Slice(Node):
                             self.velocities[i][1] - .25)
       self.particles[i].rotation += self.rotational_velocities[i]
 
-  def __init__(self, block, *args, **kwargs):
+  def __init__(self, block, is_crit, *args, **kwargs):
     self.particles = []
     self.velocities = []
     self.positions = []
@@ -76,12 +83,19 @@ class Slice(Node):
       sprite.position = (block.size.w * random() - (block.size.w / 2),
                          block.size.h * random() - (block.size.h / 2))
       self.positions.append(sprite.position)
-      self.velocities.append((4 * random() - 2, 6 * random() - 2))
+      self.velocities.append([
+        value * (1 + is_crit * crit_particle_boost)
+        for value in (4 * random() - 2, 6 * random() - 2)
+      ])
       self.rotational_velocities.append(random() - .5)
       sprite.rotation = 2 * math.pi * random()
       self.particles.append(sprite)
-    self.run_action(Action.call(self.calculate_particle_positions, 1))
-    self.run_action(Action.sequence(Action.wait(1), Action.remove()))
+    self.run_action(
+      Action.call(self.calculate_particle_positions, 1 +
+                  is_crit * crit_particle_boost))
+    self.run_action(
+      Action.sequence(
+        Action.wait(1 + is_crit * crit_particle_boost), Action.remove()))
 
 
 class Game(Scene):
@@ -98,23 +112,19 @@ class Game(Scene):
 
   def draw_time(self):
     t = game_length - int(time() - self.epoch)
+    f = t
     if (t >= 0):
       for char in self.time_chars:
         char.remove_from_parent()
       self.time_chars = []
       if (t >= 60):
-        self.time_chars.append(
-          SpriteNode(
-            'pzl:BallGray',
-            position=(self.size[0] - 106, self.size[1] - 18),
-            size=(6, 6),
-            alpha=.9))
-        self.time_chars.append(
-          SpriteNode(
-            'pzl:BallGray',
-            position=(self.size[0] - 106, self.size[1] - 30),
-            size=(6, 6),
-            alpha=.9))
+        for i in (18, 30):
+          self.time_chars.append(
+            SpriteNode(
+              'pzl:BallGray',
+              position=(self.size[0] - 106, self.size[1] - i),
+              size=(6, 6),
+              alpha=.9))
         self.time_chars.append(
           SpriteNode(
             'spc:Score' + str(t // 60),
@@ -130,7 +140,8 @@ class Game(Scene):
           SpriteNode(
             'spc:Score' + t[1 - i],
             position=(self.size[0] - i * 24 - 50, self.size[1] - 24),
-            alpha=.9))
+            alpha=.9,
+            color=("red" if f <= 20 and f % 2 else "white")))
       for char in self.time_chars:
         self.add_child(char)
       return 0
@@ -210,7 +221,7 @@ class Game(Scene):
           child.remove_from_parent()
       for block in self.blocks:
         block.remove_from_parent()
-        self.add_child(Slice(block))
+        self.add_child(Slice(block, 1))
       self.blocks = []
       if (t <= -2 and self.matches == [] and not self.waiting):
         self.waiting = True
@@ -341,7 +352,9 @@ class Game(Scene):
             self.text_pos.append((touch.location[0], touch.location[1] + 24))
             self.text_age.append(0)
             self.score += 10
-          self.add_child(Slice(removal[2]))
+            self.add_child(Slice(removal[2], 1))
+          else:
+            self.add_child(Slice(removal[2], 0))
         self.remove_block(removal)
         self.ticks = streak_ticks
         self.streak += 1
@@ -360,3 +373,4 @@ class Game(Scene):
 
 
 run(Game(), LANDSCAPE)
+
