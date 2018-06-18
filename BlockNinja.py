@@ -156,7 +156,7 @@ class Game(Scene):
                    "white")))  # this does red flashy thing at end
       for char in self.time_chars:
         self.add_child(char)
-    return t  # so external things know when to stopc
+    return f # so external things know when to stopc
 
   # returns a boolean that represents whether a point is in the scene
   def in_scene(self, position):
