@@ -35,13 +35,13 @@ max_blocks = 10
 block_chance = 0.02
 bomb_chance = 0.1
 crit_chance = 0.05
-bomb_texture = 'plf:Tile_Bomb'
+bomb_texture = 'emj:Bomb'
 blade_effect_size = (10, 10)
 blade_effect_chance = 1
 blade_effect_duration = 25
-streak_ticks = 16
+streak_ticks = 32
 text_age_max = 50
-crit_particle_boost = 2
+crit_particle_boost = 3
 
 game_length = 60  # seconds, unenforced maximum 599 (9 min 59 sec), but you will get errors thrown in your face
 
@@ -388,26 +388,29 @@ class Game(Scene):
         if (removal[2].alpha == .9):  # if the sprite's alpha is .9 (aka a bomb)
           self.score -= 10  # decrease score
           self.text.append("-10")  # display it, too.
+          
           self.text_pos.append((touch.location[0], touch.location[1] + 24))
           self.text_age.append(0)
           if (self.score <
               0):  # ensure score is never less than zero, because we don't have a sprite for the negative sign
             self.score = -1
+          self.streak = 0  # reset streak
+          self.ticks = 0
         else:
+          self.ticks = streak_ticks  # reset ticks because we hit a block
+          self.streak += 1  # increase streak
           if (random() <
               crit_chance):  # if it is not a bomb, give random chance for the collision to be a crit 
             self.text.append("Crit: +10")  # display it
             self.text_pos.append((touch.location[0], touch.location[1] + 24))
             self.text_age.append(0)
-            self.score += 10  # do it
+            self.score += 9  # do it
             self.add_child(
               Slice(removal[2],
-                    1))  # givd the particles extra velocity (second argument)
+                    1))  # give the particles extra velocity (second argument)
           else:
             self.add_child(Slice(removal[2], 0))
         self.remove_block(removal)
-        self.ticks = streak_ticks  # reset ticks cuz we hit something
-        self.streak += 1  # increase streak
         self.score += 1  # increase score
 
   def touch_ended(self, touch):  # if a finger/paw/tentacle/nose lifted off:
@@ -426,5 +429,5 @@ class Game(Scene):
 
 run(Game(), LANDSCAPE)  # run the game
 
+# You lost the game
 # I'm sorry
-
